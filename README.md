@@ -69,7 +69,13 @@ downloadable, self-contained HTML page in that same style.
 
 ## Quick start
 
-**Mac / Linux**
+**Mac** — double-click (or run from a terminal):
+```
+install.command  then edit .env with your keys, then:
+start.command
+```
+
+**Linux / Terminal**
 ```bash
 ./install.sh     # step-by-step: checks Python, creates .venv, installs, seeds .env
 # edit .env and add your API keys
@@ -168,7 +174,8 @@ Jobs must pass the three threshold gates to be eligible; the top
 ## Project layout
 
 ```
-install.sh / start.sh          # Mac/Linux: setup and launch, run from repo root
+install.sh / start.sh          # Linux: setup and launch, run from repo root
+install.command / start.command # Mac: same, double-clickable from Finder
 install.bat / start.bat        # Windows: same, double-clickable
 careerconductor/
 ├── agents/            # LangGraph nodes — one file per pipeline stage
