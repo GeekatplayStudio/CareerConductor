@@ -24,6 +24,8 @@ class Settings:
     db_path: str = os.environ.get("CAREERCONDUCTOR_DB_PATH", str(PROJECT_ROOT / "careerconductor.db"))
     anthropic_api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
     anthropic_model: str = "claude-sonnet-5"
+    gemini_api_key: str = os.environ.get("GEMINI_API_KEY", "")
+    gemini_model: str = "gemini-2.5-flash"
     master_resume_path: str = str(PROJECT_ROOT / "careerconductor" / "config" / "master_resume.md")
     project_database_path: str = str(PROJECT_ROOT / "careerconductor" / "config" / "project_database.json")
     artifact_output_dir: str = str(PROJECT_ROOT / "careerconductor" / "artifacts" / "output")
