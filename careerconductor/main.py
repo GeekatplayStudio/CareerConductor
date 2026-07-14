@@ -6,6 +6,7 @@ from pathlib import Path
 
 from careerconductor.agents.orchestrator import build_graph
 from careerconductor.config.settings import settings
+from careerconductor.config.store import load_whitelist
 from careerconductor.db.repository import CareerConductorDB
 
 
@@ -24,8 +25,8 @@ def load_initial_state() -> dict:
 def main() -> None:
     if not settings.anthropic_api_key:
         raise SystemExit("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill it in.")
-    if not settings.whitelist_targets:
-        print("No whitelist_targets configured in careerconductor/config/settings.py — nothing to scrape.")
+    if not load_whitelist():
+        print("No whitelist targets configured (careerconductor/config/whitelist.json) — nothing to scrape.")
 
     db = CareerConductorDB(db_path=settings.db_path)
     graph = build_graph(db)

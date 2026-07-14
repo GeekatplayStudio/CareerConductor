@@ -1,7 +1,7 @@
 """Scraping node: pulls postings from whitelisted official board APIs, dedupes via the DB."""
 from __future__ import annotations
 
-from careerconductor.config.settings import settings
+from careerconductor.config.store import load_whitelist
 from careerconductor.db.repository import CareerConductorDB, JobRecord, compute_job_hash
 from careerconductor.scrapers import SCRAPERS_BY_BOARD_TYPE
 from careerconductor.scrapers.base import PoliteClient
@@ -15,7 +15,7 @@ def run_scraping(state: CareerEngineState, db: CareerConductorDB) -> CareerEngin
     client = PoliteClient()
 
     try:
-        for target in settings.whitelist_targets:
+        for target in load_whitelist():
             scraper_cls = SCRAPERS_BY_BOARD_TYPE.get(target.board_type)
             if scraper_cls is None:
                 logs.append(f"skip {target.company_name}: unknown board_type {target.board_type}")

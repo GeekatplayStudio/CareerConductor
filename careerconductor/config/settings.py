@@ -7,16 +7,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from careerconductor.config.store import ScrapeTarget, load_whitelist
+
 load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-
-@dataclass
-class ScrapeTarget:
-    company_name: str
-    board_type: str  # "greenhouse" | "lever"
-    board_token: str  # e.g. greenhouse board slug, or lever company slug
 
 
 @dataclass
@@ -34,11 +29,7 @@ class Settings:
         "salt lake", "draper", "south jordan", "lehi", "american fork", "sandy",
         "provo", "orem", "remote",
     )
-    whitelist_targets: list[ScrapeTarget] = field(default_factory=lambda: [
-        # Populate with real company (board_type, board_token) pairs.
-        # Greenhouse: https://boards-api.greenhouse.io/v1/boards/<token>/jobs
-        # Lever:      https://api.lever.co/v0/postings/<token>?mode=json
-    ])
+    whitelist_targets: list[ScrapeTarget] = field(default_factory=load_whitelist)
 
 
 settings = Settings()

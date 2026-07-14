@@ -128,3 +128,46 @@ class CareerConductorDB:
                 """,
                 (limit,),
             ).fetchall()
+
+    def all_jobs(self) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                """
+                SELECT j.*, a.status, a.generated_resume_path, a.generated_cover_letter_path
+                FROM jobs_master j
+                JOIN applications_ledger a ON a.job_hash = j.job_hash
+                ORDER BY j.scraped_at DESC
+                """
+            ).fetchall()
+
+    def status_counts(self) -> dict[str, int]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT status, COUNT(*) AS n FROM applications_ledger GROUP BY status"
+            ).fetchall()
+            return {row["status"]: row["n"] for row in rows}
+
+    def record_upload(
+        self, upload_id: str, file_kind: str, original_filename: str,
+        stored_path: str, sha256: str, size_bytes: int,
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO uploaded_files
+                    (upload_id, file_kind, original_filename, stored_path, sha256, size_bytes)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (upload_id, file_kind, original_filename, stored_path, sha256, size_bytes),
+            )
+
+    def list_uploads(self, file_kind: Optional[str] = None) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            if file_kind:
+                return conn.execute(
+                    "SELECT * FROM uploaded_files WHERE file_kind = ? ORDER BY uploaded_at DESC",
+                    (file_kind,),
+                ).fetchall()
+            return conn.execute(
+                "SELECT * FROM uploaded_files ORDER BY uploaded_at DESC"
+            ).fetchall()

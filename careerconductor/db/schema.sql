@@ -27,3 +27,15 @@ CREATE TABLE IF NOT EXISTS applications_ledger (
 
 CREATE INDEX IF NOT EXISTS idx_ledger_job_hash ON applications_ledger(job_hash);
 CREATE INDEX IF NOT EXISTS idx_ledger_status ON applications_ledger(status);
+
+CREATE TABLE IF NOT EXISTS uploaded_files (
+    upload_id TEXT PRIMARY KEY,
+    file_kind TEXT NOT NULL CHECK(file_kind IN ('master_resume', 'project_database')),
+    original_filename TEXT NOT NULL,
+    stored_path TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_uploads_kind ON uploaded_files(file_kind);
