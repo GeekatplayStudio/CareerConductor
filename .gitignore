@@ -7,6 +7,8 @@ venv/
 *.db
 *.sqlite3
 .DS_Store
+.agents/
+.claude/skills/
 
 # Personal runtime data — everything the app writes about YOU stays out of git.
 careerconductor/artifacts/output/
