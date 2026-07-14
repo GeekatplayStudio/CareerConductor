@@ -16,6 +16,9 @@ st.set_page_config(page_title="Report — CareerConductor", page_icon="📊", la
 render_sidebar_status()
 st.title("📊 Report")
 
+if "flash" in st.session_state:
+    st.success(st.session_state.pop("flash"))
+
 db = get_db()
 rows = db.all_jobs()
 
@@ -77,9 +80,64 @@ if not top:
 else:
     top_df = pd.DataFrame([dict(r) for r in top])[[
         "company_name", "job_title", "location", "stability_rating",
-        "friction_rating", "location_fit_rating", "status",
+        "friction_rating", "location_fit_rating", "salary_floor",
+        "salary_ceiling", "status", "source_url",
     ]]
-    st.dataframe(top_df, use_container_width=True, hide_index=True)
+    st.dataframe(
+        top_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "salary_floor": st.column_config.NumberColumn("Salary floor", format="$%d"),
+            "salary_ceiling": st.column_config.NumberColumn("Salary ceiling", format="$%d"),
+            "source_url": st.column_config.LinkColumn("Posting", display_text="open"),
+        },
+    )
+
+st.divider()
+
+st.subheader("Generated artifacts")
+generated = [r for r in rows if r["generated_resume_path"]]
+if not generated:
+    st.caption("No artifacts generated yet.")
+else:
+    options = {f"{r['company_name']} — {r['job_title']}": r for r in generated}
+    choice = st.selectbox("Job", list(options.keys()))
+    row = options[choice]
+    col_resume, col_letter = st.columns(2)
+    for col, label, path_key in (
+        (col_resume, "Resume", "generated_resume_path"),
+        (col_letter, "Cover letter", "generated_cover_letter_path"),
+    ):
+        with col:
+            st.markdown(f"**{label}**")
+            path = Path(row[path_key]) if row[path_key] else None
+            if path is None or not path.exists():
+                st.warning(f"File not found: {row[path_key]}")
+            else:
+                content = path.read_text()
+                st.download_button(
+                    f"Download {label.lower()} (.md)", content,
+                    file_name=path.name, mime="text/markdown",
+                    key=f"dl_{path_key}_{row['job_hash']}",
+                )
+                with st.expander(f"Preview {label.lower()}", expanded=False):
+                    st.markdown(content)
+
+st.divider()
+
+st.subheader("Update application status")
+st.caption("Mark a job as applied once you've submitted, or archive ones you're skipping.")
+status_options = {f"{r['company_name']} — {r['job_title']} ({r['status']})": r for r in rows}
+status_choice = st.selectbox("Job", list(status_options.keys()), key="status_job")
+status_row = status_options[status_choice]
+new_status = st.selectbox("New status", ["applied", "archived", "generated", "analyzed"], key="status_value")
+if st.button("Update status", type="primary"):
+    db.set_status(status_row["job_hash"], new_status)
+    st.session_state.flash = (
+        f"{status_row['company_name']} — {status_row['job_title']} → {new_status}"
+    )
+    st.rerun()
 
 st.divider()
 
@@ -87,7 +145,15 @@ st.subheader("All tracked jobs")
 display_cols = [
     "company_name", "job_title", "location", "status", "stability_rating",
     "friction_rating", "location_fit_rating", "salary_floor", "salary_ceiling",
-    "salary_is_estimated", "generated_resume_path", "generated_cover_letter_path",
-    "scraped_at",
+    "salary_is_estimated", "source_url", "scraped_at",
 ]
-st.dataframe(df[[c for c in display_cols if c in df.columns]], use_container_width=True, hide_index=True)
+st.dataframe(
+    df[[c for c in display_cols if c in df.columns]],
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "salary_floor": st.column_config.NumberColumn("Salary floor", format="$%d"),
+        "salary_ceiling": st.column_config.NumberColumn("Salary ceiling", format="$%d"),
+        "source_url": st.column_config.LinkColumn("Posting", display_text="open"),
+    },
+)

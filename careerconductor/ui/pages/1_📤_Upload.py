@@ -17,6 +17,9 @@ st.set_page_config(page_title="Upload — CareerConductor", page_icon="📤", la
 render_sidebar_status()
 st.title("📤 Upload")
 
+if "flash" in st.session_state:
+    st.success(st.session_state.pop("flash"))
+
 db = get_db()
 UPLOAD_HISTORY_DIR = Path(settings.master_resume_path).parent / "uploads"
 UPLOAD_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -55,7 +58,7 @@ with tab1:
     if resume_file is not None:
         if st.button("Save as master resume", type="primary"):
             _save_upload(resume_file, "master_resume", current)
-            st.success(f"Saved {resume_file.name} as master resume.")
+            st.session_state.flash = f"Saved {resume_file.name} as master resume."
             st.rerun()
 
 with tab2:
@@ -76,7 +79,7 @@ with tab2:
                 st.write(f"Parsed {len(parsed['projects'])} project entries.")
                 if st.button("Save as project database", type="primary"):
                     _save_upload(db_file, "project_database", current_db)
-                    st.success(f"Saved {db_file.name} as project database.")
+                    st.session_state.flash = f"Saved {db_file.name} as project database."
                     st.rerun()
         except json.JSONDecodeError as exc:
             st.error(f"Invalid JSON: {exc}")

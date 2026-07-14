@@ -147,6 +147,14 @@ class CareerConductorDB:
             ).fetchall()
             return {row["status"]: row["n"] for row in rows}
 
+    def set_status(self, job_hash: str, status: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE applications_ledger SET status = ?, updated_at = CURRENT_TIMESTAMP "
+                "WHERE job_hash = ?",
+                (status, job_hash),
+            )
+
     def record_upload(
         self, upload_id: str, file_kind: str, original_filename: str,
         stored_path: str, sha256: str, size_bytes: int,
