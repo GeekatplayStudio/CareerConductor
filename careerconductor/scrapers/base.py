@@ -14,7 +14,11 @@ import httpx
 
 from careerconductor.config.settings import settings
 
-USER_AGENT = "CareerConductor/0.1 (personal job-search tool; contact via geekatplay@gmail.com)"
+# Honest self-identification. If CONTACT_EMAIL is set in .env it's included so a
+# board operator can reach the person behind the traffic (good-bot etiquette).
+USER_AGENT = "CareerConductor/0.1 (personal job-search tool" + (
+    f"; contact: {settings.contact_email}" if settings.contact_email else ""
+) + ")"
 
 
 @dataclass

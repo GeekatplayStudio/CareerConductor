@@ -120,7 +120,12 @@ generated = [r for r in rows if r["generated_resume_path"]]
 if not generated:
     st.caption("No artifacts generated yet.")
 else:
-    options = {f"{r['company_name']} — {r['job_title']}": r for r in generated}
+    # Label includes the hash prefix: two postings can share company+title
+    # (e.g. same role in two locations), and dict keys must stay unique or a
+    # collision would silently show/download the wrong job's artifacts.
+    options = {
+        f"{r['company_name']} — {r['job_title']} [{r['job_hash'][:8]}]": r for r in generated
+    }
     choice = st.selectbox("Job", list(options.keys()))
     row = options[choice]
     col_resume, col_letter = st.columns(2)
@@ -147,7 +152,11 @@ st.divider()
 
 st.subheader("Update application status")
 st.caption("Mark a job as applied once you've submitted, or archive ones you're skipping.")
-status_options = {f"{r['company_name']} — {r['job_title']} ({r['status']})": r for r in rows}
+# Hash prefix in the label for the same collision reason as the artifact viewer.
+status_options = {
+    f"{r['company_name']} — {r['job_title']} ({r['status']}) [{r['job_hash'][:8]}]": r
+    for r in rows
+}
 status_choice = st.selectbox("Job", list(status_options.keys()), key="status_job")
 status_row = status_options[status_choice]
 new_status = st.selectbox("New status", ["applied", "archived", "generated", "analyzed"], key="status_value")

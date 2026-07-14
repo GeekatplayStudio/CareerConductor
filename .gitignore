@@ -6,5 +6,9 @@ venv/
 .env
 *.db
 *.sqlite3
-careerconductor/artifacts/output/
 .DS_Store
+
+# Personal runtime data — everything the app writes about YOU stays out of git.
+careerconductor/artifacts/output/
+careerconductor/config/criteria.json
+careerconductor/config/uploads/

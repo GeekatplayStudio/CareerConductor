@@ -114,12 +114,16 @@ class CareerConductorDB:
                 SET stability_rating = ?, friction_rating = ?, location_fit_rating = ?,
                     salary_floor = COALESCE(?, salary_floor),
                     salary_ceiling = COALESCE(?, salary_ceiling),
-                    salary_is_estimated = ?,
+                    -- The estimated flag describes the salary values; when no new
+                    -- values are supplied (floor IS NULL) the old flag must survive
+                    -- too, or a rating-only update would mislabel real salary data.
+                    salary_is_estimated = CASE WHEN ? IS NULL THEN salary_is_estimated ELSE ? END,
                     match_rating = ?, salary_rating = ?, perks = ?, analysis_notes = ?
                 WHERE job_hash = ?
                 """,
                 (stability, friction, location_fit, salary_floor, salary_ceiling,
-                 int(salary_is_estimated), match, salary_fit, perks, notes, job_hash),
+                 salary_floor, int(salary_is_estimated), match, salary_fit, perks, notes,
+                 job_hash),
             )
             conn.execute(
                 "UPDATE applications_ledger SET status = 'analyzed', updated_at = CURRENT_TIMESTAMP "
@@ -159,6 +163,22 @@ class CareerConductorDB:
                 (limit,),
             ).fetchall()
 
+    def unanalyzed_jobs(self) -> list[sqlite3.Row]:
+        """Jobs scraped in an earlier run whose analysis never succeeded.
+
+        Status stays 'discovered' until update_ratings flips it to 'analyzed', so
+        this catches postings lost to transient API failures — the scraper re-queues
+        them instead of skipping them forever as "already seen".
+        """
+        with self._connect() as conn:
+            return conn.execute(
+                """
+                SELECT j.* FROM jobs_master j
+                JOIN applications_ledger a ON a.job_hash = j.job_hash
+                WHERE a.status = 'discovered'
+                """
+            ).fetchall()
+
     def all_jobs(self) -> list[sqlite3.Row]:
         with self._connect() as conn:
             return conn.execute(
@@ -190,9 +210,12 @@ class CareerConductorDB:
         stored_path: str, sha256: str, size_bytes: int,
     ) -> None:
         with self._connect() as conn:
+            # OR REPLACE (not IGNORE): re-uploading identical content refreshes the
+            # history row's filename and timestamp instead of silently vanishing —
+            # the audit trail should reflect the latest upload event.
             conn.execute(
                 """
-                INSERT OR IGNORE INTO uploaded_files
+                INSERT OR REPLACE INTO uploaded_files
                     (upload_id, file_kind, original_filename, stored_path, sha256, size_bytes)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,

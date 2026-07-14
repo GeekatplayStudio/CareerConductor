@@ -1,10 +1,17 @@
-"""Cheap relevance pre-filter using the Gemini API (free tier) before spending Claude
-tokens on full analysis. This is the "lightweight local execution" layer from the PRD's
-backup execution engine — obviously-irrelevant postings (wrong seniority, wrong
-location, wrong discipline) get dropped here instead of scored in full.
+"""Cheap relevance pre-filter: a fast, inexpensive model (Gemini free tier) screens
+postings BEFORE the expensive scoring model (Claude) sees them.
 
-Jobs are screened in batches (one API call per BATCH_SIZE jobs) to stay far under
-free-tier rate limits even when a scrape run discovers hundreds of postings.
+WHY A TWO-MODEL CASCADE: screening only needs company/title/location — a cheap
+model handles that reliably — while real scoring needs the full posting text and
+careful judgment. Dropping obvious misfits early cuts the expensive stage's
+input by whatever fraction of postings are clearly irrelevant (often most).
+
+DESIGN RULES THIS NODE FOLLOWS:
+- Batched: one API call per BATCH_SIZE postings, not one per posting, keeping a
+  hundreds-of-jobs run at a handful of requests (far under free-tier limits).
+- Fail-open: on ANY failure (API down, unusable response) the affected jobs are
+  KEPT. A screening stage must never be the reason a good job disappears; the
+  worst case of failing open is just a slightly larger Claude bill.
 """
 from __future__ import annotations
 
@@ -79,8 +86,17 @@ def run_prefilter(state: CareerEngineState) -> CareerEngineState:
                     criteria=criteria_block, postings=_format_batch(batch),
                 ),
             )
-            verdicts = {v["index"]: bool(v.get("relevant", True))
-                        for v in _extract_json_array(response.text)}
+            # Tolerant parse: models sometimes return "index" as a string or emit
+            # a malformed element. Coerce per element and skip bad ones — a job
+            # with no usable verdict fails open below rather than erroring out.
+            verdicts: dict[int, bool] = {}
+            for v in _extract_json_array(response.text):
+                try:
+                    verdicts[int(v["index"])] = bool(v.get("relevant", True))
+                except (KeyError, TypeError, ValueError):
+                    continue
+            if not verdicts:
+                logs.append(f"prefilter batch at {start}: no usable verdicts; keeping batch")
             for i, job in enumerate(batch):
                 if verdicts.get(i, True):  # missing verdict -> fail open
                     kept.append(job)

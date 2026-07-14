@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS applications_ledger (
     status TEXT NOT NULL CHECK(status IN ('discovered', 'analyzed', 'generated', 'applied', 'archived')),
     generated_resume_path TEXT,
     generated_cover_letter_path TEXT,
-    referral_contacts TEXT,
+    referral_contacts TEXT,             -- reserved for manually researched contacts;
+                                        -- automated LinkedIn scraping is deliberately
+                                        -- not implemented (ToS) so nothing writes this yet
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(job_hash) REFERENCES jobs_master(job_hash)
 );

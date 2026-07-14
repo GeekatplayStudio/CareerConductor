@@ -58,8 +58,8 @@ pre-filtering), and **Streamlit** (control panel UI).
 ## Quick start
 
 ```bash
-./scripts/install.sh          # creates .venv, installs the package
-cp .env.example .env          # then put your API keys in .env
+./scripts/install.sh          # creates .venv, installs the package, seeds .env from the template
+# edit .env and add your API keys
 ./scripts/run_ui.sh           # opens the control panel at http://localhost:8501
 ```
 
@@ -76,9 +76,10 @@ API keys (both pay-as-you-go / free-tier, **not** consumer subscriptions):
    - *Personal criteria*: plain-language description of what you want (roles,
      locations, minimum salary, interview style, dealbreakers). These lines are
      injected verbatim into every AI prompt.
-   - *Whitelist*: paste any `boards.greenhouse.io/...` or `jobs.lever.co/...`
-     careers URL. The app detects the platform, **verifies it against the
-     official API**, and adds it. Manual grid editing also available.
+   - *Whitelist*: paste any `boards.greenhouse.io/...`,
+     `job-boards.greenhouse.io/...`, or `jobs.lever.co/...` careers URL
+     (Greenhouse embed URLs work too). The app detects the platform, **verifies
+     it against the official API**, and adds it. Manual grid editing also available.
    - *Thresholds*: score gates + the per-run artifact cap.
 3. **Run Pipeline** — one button; live log; results link.
 4. **Report** — pipeline funnel, stability/friction scatter, salary chart,
@@ -95,9 +96,19 @@ Configure once — subsequent runs only need the Run button.
 ./scripts/run_pipeline.sh     # same pipeline, no UI — cron-friendly
 ```
 
+## Tests
+
+```bash
+./.venv/bin/pytest careerconductor/tests/ -v
+```
+
+No API keys or network needed: pipeline nodes are plain functions over dicts and
+the repository accepts any SQLite path, so everything runs against throwaway
+fixtures — that testability is itself one of the design points being demonstrated.
+
 ## Scoring model
 
-Each posting gets six AI-assigned values (0–10 unless noted):
+Each posting gets five 0–10 scores plus a salary estimate and two free-text fields:
 
 | Dimension | Meaning |
 |---|---|

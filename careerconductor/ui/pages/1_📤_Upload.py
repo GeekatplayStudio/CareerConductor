@@ -31,8 +31,10 @@ def _save_upload(uploaded_file, file_kind: str, canonical_path: Path) -> None:
     history_path = UPLOAD_HISTORY_DIR / f"{file_kind}__{sha256[:12]}__{uploaded_file.name}"
     history_path.write_bytes(content)
     canonical_path.write_bytes(content)
+    # file_kind is part of the id so the same bytes uploaded as resume AND as
+    # project DB produce two distinct history rows, not a primary-key collision.
     db.record_upload(
-        upload_id=f"up_{sha256[:16]}",
+        upload_id=f"up_{file_kind}_{sha256[:16]}",
         file_kind=file_kind,
         original_filename=uploaded_file.name,
         stored_path=str(canonical_path),

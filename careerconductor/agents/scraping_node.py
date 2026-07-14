@@ -51,6 +51,29 @@ def run_scraping(state: CareerEngineState, db: CareerConductorDB) -> CareerEngin
     finally:
         client.close()
 
+    # Second chance for jobs scraped in an EARLIER run whose analysis failed
+    # (transient API error, malformed response). They sit in the DB with status
+    # 'discovered'; without this re-queue the hash dedup above would skip them
+    # forever and they'd never be scored. Idempotent: once analysis succeeds,
+    # their status flips to 'analyzed' and they stop matching.
+    already_queued = {j["job_hash"] for j in discovered}
+    requeued = 0
+    for row in db.unanalyzed_jobs():
+        if row["job_hash"] in already_queued:
+            continue
+        discovered.append(JobOpportunity(
+            job_id="",
+            job_hash=row["job_hash"],
+            title=row["job_title"],
+            company=row["company_name"],
+            location=row["location"] or "",
+            source_url=row["source_url"] or "",
+            raw_text=row["raw_payload"] or "",
+        ))
+        requeued += 1
+    if requeued:
+        logs.append(f"requeued {requeued} previously scraped but never-analyzed job(s)")
+
     return {
         **state,
         "discovered_jobs": state.get("discovered_jobs", []) + discovered,
