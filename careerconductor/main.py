@@ -11,8 +11,8 @@ from careerconductor.db.repository import CareerConductorDB
 
 
 def load_initial_state() -> dict:
-    master_resume_raw = Path(settings.master_resume_path).read_text()
-    project_database = json.loads(Path(settings.project_database_path).read_text()).get("projects", [])
+    master_resume_raw = Path(settings.master_resume_path).read_text(encoding="utf-8")
+    project_database = json.loads(Path(settings.project_database_path).read_text(encoding="utf-8")).get("projects", [])
     return {
         "master_resume_raw": master_resume_raw,
         "project_database": project_database,
@@ -27,6 +27,13 @@ def main() -> None:
         raise SystemExit("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill it in.")
     if not load_whitelist():
         print("No whitelist targets configured (careerconductor/config/whitelist.json) — nothing to scrape.")
+
+    resume_path = Path(settings.master_resume_path)
+    project_db_path = Path(settings.project_database_path)
+    if not resume_path.exists():
+        raise SystemExit(f"Error: Master resume file not found at {settings.master_resume_path}. Please upload it first.")
+    if not project_db_path.exists():
+        raise SystemExit(f"Error: Project database file not found at {settings.project_database_path}. Please upload it first.")
 
     db = CareerConductorDB(db_path=settings.db_path)
     graph = build_graph(db)

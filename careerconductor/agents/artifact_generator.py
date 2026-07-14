@@ -105,8 +105,8 @@ def run_artifact_generation(state: CareerEngineState, db: CareerConductorDB) -> 
 
             resume_path = output_dir / f"{base_name}__resume.md"
             cover_letter_path = output_dir / f"{base_name}__cover_letter.md"
-            resume_path.write_text(resume_text)
-            cover_letter_path.write_text(cover_letter_text)
+            resume_path.write_text(resume_text, encoding="utf-8")
+            cover_letter_path.write_text(cover_letter_text, encoding="utf-8")
 
             db.set_generated_artifacts(
                 job_hash=job["job_hash"],

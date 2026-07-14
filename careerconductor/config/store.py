@@ -92,12 +92,12 @@ def criteria_prompt_block(c: PersonalCriteria) -> str:
 def load_whitelist() -> list[ScrapeTarget]:
     if not WHITELIST_PATH.exists():
         return []
-    data = json.loads(WHITELIST_PATH.read_text())
+    data = json.loads(WHITELIST_PATH.read_text(encoding="utf-8"))
     return [ScrapeTarget(**t) for t in data.get("targets", [])]
 
 
 def save_whitelist(targets: list[ScrapeTarget]) -> None:
-    WHITELIST_PATH.write_text(json.dumps({"targets": [asdict(t) for t in targets]}, indent=2))
+    WHITELIST_PATH.write_text(json.dumps({"targets": [asdict(t) for t in targets]}, indent=2), encoding="utf-8")
 
 
 def add_whitelist_target(target: ScrapeTarget) -> bool:
@@ -114,18 +114,18 @@ def add_whitelist_target(target: ScrapeTarget) -> bool:
 def load_thresholds() -> Thresholds:
     if not THRESHOLDS_PATH.exists():
         return Thresholds()
-    return Thresholds(**json.loads(THRESHOLDS_PATH.read_text()))
+    return Thresholds(**json.loads(THRESHOLDS_PATH.read_text(encoding="utf-8")))
 
 
 def save_thresholds(thresholds: Thresholds) -> None:
-    THRESHOLDS_PATH.write_text(json.dumps(asdict(thresholds), indent=2))
+    THRESHOLDS_PATH.write_text(json.dumps(asdict(thresholds), indent=2), encoding="utf-8")
 
 
 def load_criteria() -> PersonalCriteria:
     if not CRITERIA_PATH.exists():
         return PersonalCriteria()
-    return PersonalCriteria(**json.loads(CRITERIA_PATH.read_text()))
+    return PersonalCriteria(**json.loads(CRITERIA_PATH.read_text(encoding="utf-8")))
 
 
 def save_criteria(criteria: PersonalCriteria) -> None:
-    CRITERIA_PATH.write_text(json.dumps(asdict(criteria), indent=2))
+    CRITERIA_PATH.write_text(json.dumps(asdict(criteria), indent=2), encoding="utf-8")

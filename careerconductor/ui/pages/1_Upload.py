@@ -54,9 +54,9 @@ with tab1:
         "it does not invent experience that isn't here."
     )
     current = Path(settings.master_resume_path)
-    if current.exists() and current.read_text().strip():
+    if current.exists() and current.read_text(encoding="utf-8").strip():
         with st.expander("Current content", expanded=False):
-            st.code(current.read_text(), language="markdown")
+            st.code(current.read_text(encoding="utf-8"), language="markdown")
 
     resume_file = st.file_uploader("Upload resume (.md or .txt)", type=["md", "txt"], key="resume_upload")
     if resume_file is not None:
@@ -71,7 +71,7 @@ with tab2:
     current_db = Path(settings.project_database_path)
     if current_db.exists():
         with st.expander("Current content", expanded=False):
-            st.json(json.loads(current_db.read_text()))
+            st.json(json.loads(current_db.read_text(encoding="utf-8")))
 
     db_file = st.file_uploader("Upload project database (.json)", type=["json"], key="projectdb_upload")
     if db_file is not None:

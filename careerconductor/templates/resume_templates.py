@@ -248,7 +248,7 @@ def load_selected_template() -> ResumeTemplate:
     was renamed between versions) — config must never crash the pipeline.
     """
     if SELECTED_TEMPLATE_PATH.exists():
-        key = json.loads(SELECTED_TEMPLATE_PATH.read_text()).get("selected", DEFAULT_TEMPLATE_KEY)
+        key = json.loads(SELECTED_TEMPLATE_PATH.read_text(encoding="utf-8")).get("selected", DEFAULT_TEMPLATE_KEY)
         if key in TEMPLATES_BY_KEY:
             return TEMPLATES_BY_KEY[key]
     return TEMPLATES_BY_KEY[DEFAULT_TEMPLATE_KEY]
@@ -257,4 +257,4 @@ def load_selected_template() -> ResumeTemplate:
 def save_selected_template(key: str) -> None:
     if key not in TEMPLATES_BY_KEY:
         raise ValueError(f"unknown template key: {key}")
-    SELECTED_TEMPLATE_PATH.write_text(json.dumps({"selected": key}, indent=2))
+    SELECTED_TEMPLATE_PATH.write_text(json.dumps({"selected": key}, indent=2), encoding="utf-8")

@@ -92,7 +92,7 @@ st.caption(
 )
 
 resume_path = Path(settings.master_resume_path)
-resume_text = resume_path.read_text() if resume_path.exists() else ""
+resume_text = resume_path.read_text(encoding="utf-8") if resume_path.exists() else ""
 
 if not settings.anthropic_api_key:
     st.warning("ANTHROPIC_API_KEY is not set — add it to `.env` to generate the page.")
@@ -109,7 +109,7 @@ else:
                 out_dir = Path(settings.artifact_output_dir)
                 out_dir.mkdir(parents=True, exist_ok=True)
                 out_path = out_dir / f"cv_webpage_{selected.key}.html"
-                out_path.write_text(html_doc)
+                out_path.write_text(html_doc, encoding="utf-8")
                 # Session state survives the download-button rerun, so the preview
                 # and button don't vanish after generation.
                 st.session_state.cv_html = html_doc

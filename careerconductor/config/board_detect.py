@@ -40,7 +40,7 @@ def detect_target(url: str) -> ScrapeTarget | None:
 
     if host.endswith("greenhouse.io"):
         # embed form: /embed/job_board?for=<token>
-        if "embed" in path_parts:
+        if path_parts and path_parts[0] == "embed":
             token = parse_qs(parsed.query).get("for", [None])[0]
         else:
             token = path_parts[0] if path_parts else None

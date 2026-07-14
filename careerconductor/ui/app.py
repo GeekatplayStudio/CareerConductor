@@ -39,7 +39,7 @@ with left:
                 "Anthropic API key" if settings.anthropic_api_key else "Anthropic API key — set in .env")
     status_line(bool(settings.gemini_api_key),
                 "Gemini API key" if settings.gemini_api_key else "Gemini API key — optional pre-filter, set in .env")
-    resume_text = Path(settings.master_resume_path).read_text() if Path(settings.master_resume_path).exists() else ""
+    resume_text = Path(settings.master_resume_path).read_text(encoding="utf-8") if Path(settings.master_resume_path).exists() else ""
     resume_ok = len(resume_text) > 300
     status_line(resume_ok,
                 "Master resume uploaded" if resume_ok else "Master resume looks empty — go to Upload",

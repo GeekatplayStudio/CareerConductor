@@ -241,7 +241,7 @@ else:
             if path is None or not path.exists():
                 st.warning(f"File not found: {row[path_key]}")
             else:
-                content = path.read_text()
+                content = path.read_text(encoding="utf-8")
                 st.download_button(
                     f"Download {label.lower()} (.md)", content,
                     file_name=path.name, mime="text/markdown",

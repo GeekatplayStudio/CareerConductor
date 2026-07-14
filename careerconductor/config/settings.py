@@ -25,7 +25,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 class Settings:
     db_path: str = os.environ.get("CAREERCONDUCTOR_DB_PATH", str(PROJECT_ROOT / "careerconductor.db"))
     anthropic_api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
-    anthropic_model: str = "claude-sonnet-5"
+    anthropic_model: str = "claude-3-5-sonnet-latest"
     gemini_api_key: str = os.environ.get("GEMINI_API_KEY", "")
     gemini_model: str = "gemini-2.5-flash"
     # Optional: included in the scraper's User-Agent so board operators can

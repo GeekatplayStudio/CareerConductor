@@ -32,7 +32,19 @@ else:
     if not settings.gemini_api_key:
         st.caption("GEMINI_API_KEY not set — the cheap pre-filter step will be skipped (fine, just costs a bit more).")
 
-    run_clicked = st.button("Run full pipeline now", type="primary")
+    resume_path = Path(settings.master_resume_path)
+    project_db_path = Path(settings.project_database_path)
+    files_exist = resume_path.exists() and project_db_path.exists()
+
+    if not files_exist:
+        if not resume_path.exists():
+            st.error("Master resume is missing. Please go to the **Upload** page to upload one.")
+        if not project_db_path.exists():
+            st.error("Project database is missing. Please go to the **Upload** page to upload one.")
+        st.button("Run full pipeline now", type="primary", disabled=True)
+        run_clicked = False
+    else:
+        run_clicked = st.button("Run full pipeline now", type="primary")
 
     # The same network visual as the dashboard, but "hot" while agents work:
     # faster rotation, dense signal pulses — a live status display, not decoration.
@@ -43,8 +55,8 @@ else:
     )
 
     if run_clicked:
-        resume_text = Path(settings.master_resume_path).read_text()
-        project_database = json.loads(Path(settings.project_database_path).read_text()).get("projects", [])
+        resume_text = resume_path.read_text(encoding="utf-8")
+        project_database = json.loads(project_db_path.read_text(encoding="utf-8")).get("projects", [])
 
         initial_state = {
             "master_resume_raw": resume_text,

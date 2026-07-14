@@ -63,6 +63,9 @@ downloadable, self-contained HTML page in that same style.
 | Never-analyzed jobs re-queue automatically | `agents/scraping_node.py` | A transient scoring failure must not permanently lose a posting to hash dedup |
 | Templates are data, not code | `templates/resume_templates.py` | Adding a resume style is one registry entry — no new logic anywhere |
 | UI-selector collisions avoided with hash-suffixed labels | `ui/pages/4_Report.py` | Two postings can share company+title; dropdown keys must stay unique |
+| UTF-8 Encoding | Everywhere | Specify `encoding="utf-8"` in all I/O to support non-ASCII characters on Windows/macOS/Linux |
+| SQLite Foreign Keys | `db/repository.py` | Explicitly enforce `PRAGMA foreign_keys = ON` to protect ledger integrity |
+| File existence checks | `ui/pages/3_Run_Pipeline.py` & `main.py` | Pre-checks prevent pipeline crashes when starting from a fresh environment |
 
 ## Quick start
 
