@@ -85,6 +85,11 @@ API keys (both pay-as-you-go / free-tier, **not** consumer subscriptions):
 4. **Report** — pipeline funnel, stability/friction scatter, salary chart,
    ranked top-candidates table (with match/salary-fit scores, perks, and AI
    notes), artifact preview/download, and status management (applied/archived).
+5. **Templates** — ten resume styles across categories (ATS-optimized,
+   corporate, modern, technical, creative, startup, academic, consulting,
+   hybrid). The selected style steers every generated resume's structure and
+   tone. Also generates a **self-contained HTML CV web page** in that style —
+   preview it in-app and download the single file (host anywhere, prints cleanly).
 
 Everything persists locally: configuration in JSON files under
 `careerconductor/config/`, all job data in `careerconductor.db` (SQLite).

@@ -54,4 +54,7 @@ with right:
     st.caption("Adjust these on the Configuration page.")
 
 st.divider()
-st.info("Use the sidebar to navigate: **Upload**, **Configuration**, **Run Pipeline**, **Report**.")
+st.info(
+    "Use the sidebar to navigate: **Upload**, **Configuration**, **Run Pipeline**, "
+    "**Report**, **Templates**."
+)

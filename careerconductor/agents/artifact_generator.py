@@ -15,6 +15,7 @@ import anthropic
 
 from careerconductor.config.settings import settings
 from careerconductor.db.repository import CareerConductorDB
+from careerconductor.templates.resume_templates import load_selected_template
 
 from .llm import cached_system_block, claude_call
 from .state import CareerEngineState
@@ -25,12 +26,17 @@ _CANDIDATE_CONTEXT_TEMPLATE = """MASTER RESUME:
 PROJECT DATABASE (JSON):
 {project_database}"""
 
-_RESUME_INSTRUCTIONS = """You are tailoring a resume for a specific job application. Use ONLY the
+# {template_style} is filled at run time from the user's Templates-page choice,
+# so the same tailoring rules apply regardless of visual style — the template
+# only controls structure/tone, never permits inventing content.
+_RESUME_INSTRUCTIONS_TEMPLATE = """You are tailoring a resume for a specific job application. Use ONLY the
 experience, projects, and skills present in the master resume and project database above — do not
 invent accomplishments. Extract target keywords from the job description, surface and prioritize
 the most relevant past accomplishments, and deprioritize irrelevant technical components. Output
 clean, parsed Markdown with no aesthetic clutter (no tables of icons, no emoji, no horizontal
-rules beyond simple section breaks)."""
+rules beyond simple section breaks).
+
+TEMPLATE STYLE — "{template_name}": {template_style}"""
 
 _COVER_LETTER_INSTRUCTIONS = """Write a professional, punchy cover letter (under 350 words) for
 this job application, using only the background above. Focus entirely on system architectural
@@ -77,6 +83,13 @@ def run_artifact_generation(state: CareerEngineState, db: CareerConductorDB) -> 
         project_database=json.dumps(state.get("project_database", [])),
     )
 
+    # Loaded at run time so a template picked in the UI applies to the next run.
+    template = load_selected_template()
+    resume_instructions = _RESUME_INSTRUCTIONS_TEMPLATE.format(
+        template_name=template.name, template_style=template.style_instructions,
+    )
+    logs.append(f"resume template: {template.name} ({template.category})")
+
     for job in state.get("selected_jobs", []):
         company_slug = _slugify(job.get("company", "unknown"))
         title_slug = _slugify(job.get("title", "role"))
@@ -84,7 +97,7 @@ def run_artifact_generation(state: CareerEngineState, db: CareerConductorDB) -> 
 
         try:
             resume_text = _generate(
-                client, cached_context, _RESUME_INSTRUCTIONS, "tailored resume", job, max_tokens=2000
+                client, cached_context, resume_instructions, "tailored resume", job, max_tokens=2000
             )
             cover_letter_text = _generate(
                 client, cached_context, _COVER_LETTER_INSTRUCTIONS, "cover letter", job, max_tokens=800

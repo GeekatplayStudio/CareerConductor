@@ -149,6 +149,45 @@ def test_detect_target_rejects_unknown_hosts():
 
 # ------------------------------------------------------------------ criteria
 
+# ----------------------------------------------------------------- templates
+
+def test_template_registry_integrity():
+    from careerconductor.templates.resume_templates import TEMPLATES, categories
+    assert len(TEMPLATES) == 10
+    keys = [t.key for t in TEMPLATES]
+    assert len(set(keys)) == 10  # unique keys
+    for t in TEMPLATES:
+        # every template must carry both style contracts and preview DNA
+        assert t.style_instructions and t.web_style and t.accent.startswith("#")
+    assert len(categories()) >= 5  # genuinely spans multiple categories
+
+
+def test_template_selection_round_trip(tmp_path, monkeypatch):
+    from careerconductor.templates import resume_templates as rt
+    monkeypatch.setattr(rt, "SELECTED_TEMPLATE_PATH", tmp_path / "template.json")
+    assert rt.load_selected_template().key == rt.DEFAULT_TEMPLATE_KEY  # default first
+    rt.save_selected_template("tech-engineer")
+    assert rt.load_selected_template().key == "tech-engineer"
+    with pytest.raises(ValueError):
+        rt.save_selected_template("no-such-template")
+
+
+def test_template_selection_falls_back_on_stale_key(tmp_path, monkeypatch):
+    # A key saved by an older version that no longer exists must not crash runs.
+    from careerconductor.templates import resume_templates as rt
+    path = tmp_path / "template.json"
+    monkeypatch.setattr(rt, "SELECTED_TEMPLATE_PATH", path)
+    path.write_text('{"selected": "renamed-away"}')
+    assert rt.load_selected_template().key == rt.DEFAULT_TEMPLATE_KEY
+
+
+def test_cv_webpage_code_fence_stripping():
+    from careerconductor.templates.cv_webpage import _looks_like_html, _strip_code_fence
+    fenced = "```html\n<!DOCTYPE html><html><body>x</body></html>\n```"
+    assert _looks_like_html(_strip_code_fence(fenced))
+    assert not _looks_like_html("Here is your resume as a webpage: ...")
+
+
 def test_criteria_prompt_block_includes_optional_fields_only_when_set():
     minimal = criteria_prompt_block(PersonalCriteria())
     assert "Dealbreakers" not in minimal
