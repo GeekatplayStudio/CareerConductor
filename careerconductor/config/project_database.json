@@ -1,0 +1,10 @@
+{
+  "projects": [
+    {
+      "name": "Example: Replace with real accomplishment",
+      "tags": ["architecture", "leadership"],
+      "summary": "One or two sentences of business/technical impact, quantified where possible.",
+      "keywords": ["example-keyword"]
+    }
+  ]
+}
