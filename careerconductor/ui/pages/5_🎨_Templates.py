@@ -25,10 +25,12 @@ from careerconductor.templates.resume_templates import (
     save_selected_template,
 )
 from careerconductor.ui.common import render_sidebar_status
+from careerconductor.ui.theme import apply_theme, hero
 
 st.set_page_config(page_title="Templates — CareerConductor", page_icon="🎨", layout="wide")
+apply_theme()
 render_sidebar_status()
-st.title("🎨 Resume Templates")
+hero("Resume Templates", "Pick the style that ships with every tailored resume")
 
 if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))

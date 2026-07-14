@@ -13,10 +13,12 @@ from careerconductor.agents.orchestrator import build_graph
 from careerconductor.config.settings import settings
 from careerconductor.config.store import load_whitelist
 from careerconductor.ui.common import get_db, render_sidebar_status
+from careerconductor.ui.theme import agent_network, apply_theme, hero
 
 st.set_page_config(page_title="Run Pipeline — CareerConductor", page_icon="▶️", layout="wide")
+apply_theme()
 render_sidebar_status()
-st.title("▶️ Run Pipeline")
+hero("Run Pipeline", "scrape → prefilter → analyze → select → generate → referrals")
 
 db = get_db()
 targets = load_whitelist()
@@ -30,7 +32,17 @@ else:
     if not settings.gemini_api_key:
         st.caption("⚠️ GEMINI_API_KEY not set — the cheap pre-filter step will be skipped (fine, just costs a bit more).")
 
-    if st.button("Run full pipeline now", type="primary"):
+    run_clicked = st.button("Run full pipeline now", type="primary")
+
+    # The same network visual as the dashboard, but "hot" while agents work:
+    # faster rotation, dense signal pulses — a live status display, not decoration.
+    agent_network(
+        height=220,
+        active=run_clicked,
+        label="agent network · working" if run_clicked else "agent network · standing by",
+    )
+
+    if run_clicked:
         resume_text = Path(settings.master_resume_path).read_text()
         project_database = json.loads(Path(settings.project_database_path).read_text()).get("projects", [])
 

@@ -12,10 +12,12 @@ import streamlit as st
 
 from careerconductor.config.settings import settings
 from careerconductor.ui.common import get_db, render_sidebar_status
+from careerconductor.ui.theme import apply_theme, hero
 
 st.set_page_config(page_title="Upload — CareerConductor", page_icon="📤", layout="wide")
+apply_theme()
 render_sidebar_status()
-st.title("📤 Upload")
+hero("Upload", "Master resume and project database — content-hashed and tracked")
 
 if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))

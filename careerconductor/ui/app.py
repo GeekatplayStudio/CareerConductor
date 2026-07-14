@@ -12,12 +12,14 @@ import streamlit as st
 from careerconductor.config.settings import settings
 from careerconductor.config.store import CRITERIA_PATH, load_thresholds, load_whitelist
 from careerconductor.ui.common import get_db, render_sidebar_status
+from careerconductor.ui.theme import agent_network, apply_theme, hero
 
 st.set_page_config(page_title="CareerConductor", page_icon="🧭", layout="wide")
+apply_theme()
 render_sidebar_status()
 
-st.title("🧭 CareerConductor")
-st.caption("Multi-agent job scouting & tailoring engine — local control panel")
+hero("CareerConductor", "Multi-agent job scouting & tailoring engine — local control panel")
+agent_network(height=230, active=False, label="agent network · idle")
 
 db = get_db()
 counts = db.status_counts()

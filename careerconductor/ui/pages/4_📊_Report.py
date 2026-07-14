@@ -1,4 +1,5 @@
-"""Report page: pipeline funnel, scoring charts, salary ranges, top candidates, logs."""
+"""Report page: pipeline funnel, scoring charts, score-profile radar, salary/score
+quadrant, discovery timeline, top candidates, artifacts, and status management."""
 from __future__ import annotations
 
 import sys
@@ -8,13 +9,35 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from careerconductor.ui.common import get_db, render_sidebar_status
+from careerconductor.ui.theme import ACCENT, ACCENT_2, apply_theme, hero
+
+# One styling pass for every chart on the page: transparent glass background,
+# light text, and a fixed accent colorway so all figures read as one system.
+COLORWAY = [ACCENT, ACCENT_2, "#f0abfc", "#34d399", "#fbbf24", "#fb7185", "#60a5fa"]
+
+
+def _style(fig):
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(15,21,40,0.35)",
+        font_color="#cbd5e1",
+        colorway=COLORWAY,
+        margin=dict(t=30, r=10, l=10, b=10),
+        legend=dict(bgcolor="rgba(0,0,0,0)"),
+    )
+    fig.update_xaxes(gridcolor="rgba(148,163,184,.12)", zerolinecolor="rgba(148,163,184,.2)")
+    fig.update_yaxes(gridcolor="rgba(148,163,184,.12)", zerolinecolor="rgba(148,163,184,.2)")
+    return fig
+
 
 st.set_page_config(page_title="Report — CareerConductor", page_icon="📊", layout="wide")
+apply_theme()
 render_sidebar_status()
-st.title("📊 Report")
+hero("Report", "Everything the agents found, scored, and generated")
 
 if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))
@@ -36,7 +59,7 @@ funnel_df = pd.DataFrame(
     {"stage": STATUS_ORDER, "count": [counts.get(s, 0) for s in STATUS_ORDER]}
 )
 fig_funnel = px.funnel(funnel_df, x="count", y="stage")
-st.plotly_chart(fig_funnel, use_container_width=True)
+st.plotly_chart(_style(fig_funnel), use_container_width=True)
 
 st.divider()
 
@@ -56,7 +79,7 @@ with col1:
             labels={"friction_rating": "Interview friction (lower is better)",
                     "stability_rating": "Company stability"},
         )
-        st.plotly_chart(fig_scatter, use_container_width=True)
+        st.plotly_chart(_style(fig_scatter), use_container_width=True)
 
 with col2:
     st.subheader("Salary ranges by company")
@@ -69,7 +92,86 @@ with col2:
             salary_df, x="job_title", y=["salary_floor", "salary_ceiling"],
             barmode="group", hover_data=["company_name"],
         )
-        st.plotly_chart(fig_salary, use_container_width=True)
+        st.plotly_chart(_style(fig_salary), use_container_width=True)
+
+st.divider()
+
+# ------------------------------------------------- deeper analytical charts
+scored_full = scored.copy()
+if not scored_full.empty:
+    scored_full["composite"] = (
+        scored_full["match_rating"].fillna(0)
+        + scored_full["stability_rating"]
+        - scored_full["friction_rating"]
+        + scored_full["location_fit_rating"]
+        + scored_full["salary_rating"].fillna(0)
+    )
+
+col3, col4 = st.columns(2)
+
+with col3:
+    st.subheader("Score profiles — top 5 head-to-head")
+    st.caption("Radar of all five dimensions. Friction is inverted (10 − friction) so bigger is always better.")
+    if scored_full.empty:
+        st.caption("No scored jobs yet.")
+    else:
+        radar_dims = ["Match", "Stability", "Low friction", "Location", "Salary fit"]
+        fig_radar = go.Figure()
+        for _, r in scored_full.nlargest(5, "composite").iterrows():
+            fig_radar.add_trace(go.Scatterpolar(
+                r=[
+                    r["match_rating"] or 0, r["stability_rating"],
+                    10 - r["friction_rating"], r["location_fit_rating"],
+                    r["salary_rating"] or 0,
+                ],
+                theta=radar_dims,
+                fill="toself",
+                opacity=0.55,
+                name=f"{r['company_name']} — {r['job_title'][:24]}",
+            ))
+        fig_radar.update_layout(
+            polar=dict(
+                bgcolor="rgba(15,21,40,0.35)",
+                radialaxis=dict(range=[0, 10], gridcolor="rgba(148,163,184,.18)"),
+                angularaxis=dict(gridcolor="rgba(148,163,184,.18)"),
+            ),
+            height=420,
+        )
+        st.plotly_chart(_style(fig_radar), use_container_width=True)
+
+with col4:
+    st.subheader("Pay vs. fit quadrant")
+    st.caption("Top-right = well paid AND well matched. Bubble size = stability; midlines at the medians.")
+    quad = scored_full.dropna(subset=["salary_ceiling"]) if not scored_full.empty else scored_full
+    if quad.empty:
+        st.caption("No salary data yet.")
+    else:
+        fig_quad = px.scatter(
+            quad, x="composite", y="salary_ceiling",
+            size=quad["stability_rating"].clip(lower=1), color="company_name",
+            hover_data=["job_title", "location", "perks"],
+            labels={"composite": "Composite fit score", "salary_ceiling": "Salary ceiling (USD)"},
+            height=420,
+        )
+        fig_quad.add_hline(y=quad["salary_ceiling"].median(), line_dash="dot",
+                           line_color="rgba(148,163,184,.5)")
+        fig_quad.add_vline(x=quad["composite"].median(), line_dash="dot",
+                           line_color="rgba(148,163,184,.5)")
+        st.plotly_chart(_style(fig_quad), use_container_width=True)
+
+st.subheader("Discovery timeline")
+st.caption("Postings entering the ledger over time — spot which scrape runs actually found new roles.")
+timeline = df.copy()
+timeline["scraped_day"] = pd.to_datetime(timeline["scraped_at"]).dt.date
+by_day = timeline.groupby("scraped_day").size().reset_index(name="new_jobs")
+by_day["cumulative"] = by_day["new_jobs"].cumsum()
+fig_time = go.Figure()
+fig_time.add_trace(go.Bar(x=by_day["scraped_day"], y=by_day["new_jobs"],
+                          name="New postings", marker_color=ACCENT, opacity=0.75))
+fig_time.add_trace(go.Scatter(x=by_day["scraped_day"], y=by_day["cumulative"],
+                              name="Total tracked", mode="lines+markers",
+                              line=dict(color=ACCENT_2, width=3)))
+st.plotly_chart(_style(fig_time), use_container_width=True)
 
 st.divider()
 
