@@ -1,15 +1,19 @@
 CREATE TABLE IF NOT EXISTS jobs_master (
-    job_hash TEXT PRIMARY KEY,
+    job_hash TEXT PRIMARY KEY,          -- sha256(company + job id/url): idempotency key
     company_name TEXT NOT NULL,
     job_title TEXT NOT NULL,
     location TEXT,
     source_url TEXT,
-    salary_floor INTEGER,
+    salary_floor INTEGER,               -- listed in posting, or AI-estimated
     salary_ceiling INTEGER,
     salary_is_estimated INTEGER DEFAULT 0,
-    stability_rating REAL,
-    friction_rating REAL,
+    stability_rating REAL,              -- all ratings 0-10, filled by the analysis agent
+    friction_rating REAL,               -- 10 = worst (heavy live-coding interviews)
     location_fit_rating REAL,
+    match_rating REAL,                  -- fit vs. the candidate's personal criteria
+    salary_rating REAL,                 -- comp vs. the candidate's minimum expectation
+    perks TEXT,                         -- notable bonuses/benefits spotted by the AI
+    analysis_notes TEXT,                -- anything else the AI flagged as worth knowing
     raw_payload TEXT,
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

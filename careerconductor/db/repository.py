@@ -48,9 +48,25 @@ class CareerConductorDB:
         finally:
             conn.close()
 
+    # Columns added after the first release. CREATE TABLE IF NOT EXISTS won't touch
+    # an existing table, so upgrades apply each ALTER and ignore the "duplicate
+    # column" error when it already ran — a minimal, dependency-free migration story.
+    _MIGRATIONS = (
+        "ALTER TABLE jobs_master ADD COLUMN match_rating REAL",
+        "ALTER TABLE jobs_master ADD COLUMN salary_rating REAL",
+        "ALTER TABLE jobs_master ADD COLUMN perks TEXT",
+        "ALTER TABLE jobs_master ADD COLUMN analysis_notes TEXT",
+    )
+
     def _init_schema(self) -> None:
         with self._connect() as conn:
             conn.executescript(_SCHEMA_PATH.read_text())
+            for statement in self._MIGRATIONS:
+                try:
+                    conn.execute(statement)
+                except sqlite3.OperationalError as exc:
+                    if "duplicate column" not in str(exc).lower():
+                        raise
 
     def job_exists(self, job_hash: str) -> bool:
         with self._connect() as conn:
@@ -88,6 +104,8 @@ class CareerConductorDB:
         self, job_hash: str, stability: float, friction: float, location_fit: float,
         salary_floor: Optional[int] = None, salary_ceiling: Optional[int] = None,
         salary_is_estimated: bool = False,
+        match: Optional[float] = None, salary_fit: Optional[float] = None,
+        perks: Optional[str] = None, notes: Optional[str] = None,
     ) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -96,11 +114,12 @@ class CareerConductorDB:
                 SET stability_rating = ?, friction_rating = ?, location_fit_rating = ?,
                     salary_floor = COALESCE(?, salary_floor),
                     salary_ceiling = COALESCE(?, salary_ceiling),
-                    salary_is_estimated = ?
+                    salary_is_estimated = ?,
+                    match_rating = ?, salary_rating = ?, perks = ?, analysis_notes = ?
                 WHERE job_hash = ?
                 """,
                 (stability, friction, location_fit, salary_floor, salary_ceiling,
-                 int(salary_is_estimated), job_hash),
+                 int(salary_is_estimated), match, salary_fit, perks, notes, job_hash),
             )
             conn.execute(
                 "UPDATE applications_ledger SET status = 'analyzed', updated_at = CURRENT_TIMESTAMP "
@@ -129,7 +148,12 @@ class CareerConductorDB:
                 SELECT j.*, a.status FROM jobs_master j
                 JOIN applications_ledger a ON a.job_hash = j.job_hash
                 WHERE j.stability_rating IS NOT NULL
-                ORDER BY (j.stability_rating - j.friction_rating + j.location_fit_rating) DESC
+                -- Same composite formula as agents/selection.py::composite_score.
+                -- COALESCE keeps rows scored by an older version (no match/salary
+                -- ratings) sortable instead of sinking them to NULL.
+                ORDER BY (COALESCE(j.match_rating, 0) + j.stability_rating
+                          - j.friction_rating + j.location_fit_rating
+                          + COALESCE(j.salary_rating, 0)) DESC
                 LIMIT ?
                 """,
                 (limit,),

@@ -7,11 +7,18 @@ from .state import CareerEngineState
 
 
 def composite_score(job: dict) -> float:
-    """Ranking score: stability and location fit are good, interview friction is bad."""
+    """Ranking score used to pick which eligible jobs get artifacts first.
+
+    Keep this in sync with the ORDER BY in repository.top_candidates() — the UI's
+    "Top candidates" ranking and the pipeline's artifact ordering must agree, or
+    the report would show a different top-10 than the one that got resumes.
+    """
     return (
-        job.get("stability_score", 0)
+        job.get("match_score", 0)
+        + job.get("stability_score", 0)
         - job.get("interview_friction", 10)
         + job.get("location_fit_score", 0)
+        + job.get("salary_score", 0)
     )
 
 

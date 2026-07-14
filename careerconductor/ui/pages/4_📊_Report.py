@@ -79,23 +79,36 @@ if not top:
     st.caption("No scored jobs yet.")
 else:
     top_df = pd.DataFrame([dict(r) for r in top])
+    # Same composite formula as selection.composite_score / repository.top_candidates.
+    # fillna(0) mirrors SQL's COALESCE for rows scored by an older version.
     top_df["score"] = (
-        top_df["stability_rating"] - top_df["friction_rating"] + top_df["location_fit_rating"]
+        top_df["match_rating"].fillna(0)
+        + top_df["stability_rating"]
+        - top_df["friction_rating"]
+        + top_df["location_fit_rating"]
+        + top_df["salary_rating"].fillna(0)
     )
     top_df = top_df[[
-        "score", "company_name", "job_title", "location", "stability_rating",
-        "friction_rating", "location_fit_rating", "salary_floor",
-        "salary_ceiling", "status", "source_url",
+        "score", "company_name", "job_title", "location", "match_rating",
+        "stability_rating", "friction_rating", "location_fit_rating", "salary_rating",
+        "salary_floor", "salary_ceiling", "perks", "analysis_notes", "status", "source_url",
     ]]
-    st.caption("Score = stability − friction + location fit (same formula the pipeline ranks by).")
+    st.caption(
+        "Score = match + stability − friction + location fit + salary fit "
+        "(the same formula the pipeline ranks by)."
+    )
     st.dataframe(
         top_df,
         use_container_width=True,
         hide_index=True,
         column_config={
             "score": st.column_config.NumberColumn("Score", format="%.1f"),
+            "match_rating": st.column_config.NumberColumn("Match", format="%.1f"),
+            "salary_rating": st.column_config.NumberColumn("Salary fit", format="%.1f"),
             "salary_floor": st.column_config.NumberColumn("Salary floor", format="$%d"),
             "salary_ceiling": st.column_config.NumberColumn("Salary ceiling", format="$%d"),
+            "perks": st.column_config.TextColumn("Perks"),
+            "analysis_notes": st.column_config.TextColumn("AI notes"),
             "source_url": st.column_config.LinkColumn("Posting", display_text="open"),
         },
     )
@@ -153,9 +166,10 @@ status_filter = st.multiselect(
 )
 df = df[df["status"].isin(status_filter)]
 display_cols = [
-    "company_name", "job_title", "location", "status", "stability_rating",
-    "friction_rating", "location_fit_rating", "salary_floor", "salary_ceiling",
-    "salary_is_estimated", "source_url", "scraped_at",
+    "company_name", "job_title", "location", "status", "match_rating",
+    "stability_rating", "friction_rating", "location_fit_rating", "salary_rating",
+    "salary_floor", "salary_ceiling", "salary_is_estimated", "perks",
+    "analysis_notes", "source_url", "scraped_at",
 ]
 st.dataframe(
     df[[c for c in display_cols if c in df.columns]],

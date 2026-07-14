@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import streamlit as st
 
 from careerconductor.config.settings import settings
-from careerconductor.config.store import load_thresholds, load_whitelist
+from careerconductor.config.store import CRITERIA_PATH, load_thresholds, load_whitelist
 from careerconductor.ui.common import get_db, render_sidebar_status
 
 st.set_page_config(page_title="CareerConductor", page_icon="🧭", layout="wide")
@@ -39,6 +39,10 @@ with left:
     st.write("✅ Master resume uploaded" if len(resume_text) > 300 else "⚠️ Master resume looks empty — go to Upload")
     targets = load_whitelist()
     st.write(f"{'✅' if targets else '⚠️'} Whitelist targets configured: {len(targets)}")
+    st.write(
+        "✅ Personal criteria saved" if CRITERIA_PATH.exists()
+        else "⚠️ Personal criteria not saved yet — defaults in use (Configuration page)"
+    )
 
 with right:
     st.subheader("Current thresholds")

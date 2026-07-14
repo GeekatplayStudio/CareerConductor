@@ -14,9 +14,15 @@ class JobOpportunity(TypedDict, total=False):
     raw_text: str
     salary_range: Dict[str, float]
     salary_is_estimated: bool
+    # Analysis-agent scores, all 0-10. total=False because jobs flow through the
+    # graph partially filled: scraping sets identity fields, analysis adds these.
+    match_score: float          # fit vs. the candidate's personal criteria
     stability_score: float
-    interview_friction: float
+    interview_friction: float   # 10 = worst (heavy live coding)
     location_fit_score: float
+    salary_score: float         # comp vs. the candidate's minimum expectation
+    perks: str
+    notes: str
 
 
 class CareerEngineState(TypedDict, total=False):

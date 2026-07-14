@@ -14,18 +14,20 @@ import re
 from google import genai
 
 from careerconductor.config.settings import settings
+from careerconductor.config.store import criteria_prompt_block, load_criteria
 
 from .state import CareerEngineState, JobOpportunity
 
 BATCH_SIZE = 30
 
-_PREFILTER_PROMPT = """Quick relevance screen only — not a full evaluation. For EACH numbered
-posting below, decide whether it is even worth a detailed look for a senior/staff-level
-software engineer targeting Utah's Salt Lake Valley (Salt Lake City, Draper, South Jordan,
-Lehi, American Fork, Sandy, Provo, Orem) or fully remote roles.
+_PREFILTER_PROMPT = """Quick relevance screen only — not a full evaluation. The candidate:
 
-Reject only if CLEARLY wrong fit: junior/entry-level titles, unrelated discipline (e.g. sales,
-retail), or a rigid on-site requirement far outside Utah with no remote option. When in doubt, keep it.
+{criteria}
+
+For EACH numbered posting below, decide whether it is even worth a detailed look for this
+candidate. Reject only if CLEARLY wrong fit: wrong seniority, unrelated discipline (e.g.
+sales, retail), or a rigid on-site requirement incompatible with the candidate's locations.
+When in doubt, keep it — a later, more careful stage does the real scoring.
 
 Postings:
 {postings}
@@ -65,12 +67,17 @@ def run_prefilter(state: CareerEngineState) -> CareerEngineState:
     kept: list[JobOpportunity] = []
     dropped = 0
 
+    # Loaded at run time so criteria edits saved in the UI apply on the next run.
+    criteria_block = criteria_prompt_block(load_criteria())
+
     for start in range(0, len(jobs), BATCH_SIZE):
         batch = jobs[start:start + BATCH_SIZE]
         try:
             response = client.models.generate_content(
                 model=settings.gemini_model,
-                contents=_PREFILTER_PROMPT.format(postings=_format_batch(batch)),
+                contents=_PREFILTER_PROMPT.format(
+                    criteria=criteria_block, postings=_format_batch(batch),
+                ),
             )
             verdicts = {v["index"]: bool(v.get("relevant", True))
                         for v in _extract_json_array(response.text)}

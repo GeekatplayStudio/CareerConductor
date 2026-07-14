@@ -1,4 +1,9 @@
-"""Configuration page: whitelist scrape targets + selection thresholds."""
+"""Configuration page: personal criteria, whitelist targets (paste-a-URL or manual
+grid), and selection thresholds.
+
+Everything on this page persists to small JSON files (see config/store.py), so
+it survives restarts — configure once, run forever.
+"""
 from __future__ import annotations
 
 import sys
@@ -8,12 +13,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 import streamlit as st
 
+from careerconductor.config.board_detect import detect_target, verify_target
 from careerconductor.config.settings import settings
 from careerconductor.config.store import (
+    PersonalCriteria,
     ScrapeTarget,
     Thresholds,
+    add_whitelist_target,
+    load_criteria,
     load_thresholds,
     load_whitelist,
+    save_criteria,
     save_thresholds,
     save_whitelist,
 )
@@ -23,6 +33,12 @@ st.set_page_config(page_title="Configuration — CareerConductor", page_icon="�
 render_sidebar_status()
 st.title("⚙️ Configuration")
 
+# Flash pattern: messages set before st.rerun() would vanish with the rerun,
+# so they're stashed in session_state and shown on the next render instead.
+if "flash" in st.session_state:
+    st.success(st.session_state.pop("flash"))
+
+# ---------------------------------------------------------------- API keys
 st.subheader("API keys")
 st.caption("Set in `.env` at the project root — the UI doesn't store keys.")
 col1, col2 = st.columns(2)
@@ -31,23 +47,78 @@ col2.write(f"`GEMINI_API_KEY`: {'✅ set' if settings.gemini_api_key else '❌ n
 
 st.divider()
 
-st.subheader("Whitelist targets")
+# ------------------------------------------------------- Personal criteria
+st.subheader("Personal criteria")
 st.caption(
-    "Companies to scrape via their official Greenhouse/Lever public job-board API. "
-    "Find the token from the careers page URL, e.g. boards.greenhouse.io/**token** "
-    "or jobs.lever.co/**token**."
+    "Plain language works best — these lines are injected verbatim into the AI "
+    "prompts that screen and score every posting, like a hiring brief about you."
+)
+c = load_criteria()
+target_roles = st.text_area("Target roles", value=c.target_roles, height=68)
+locations = st.text_area("Acceptable locations", value=c.locations, height=68)
+min_salary = st.number_input(
+    "Minimum acceptable salary (USD/year)", min_value=0, max_value=1_000_000,
+    value=c.min_salary, step=5000,
+)
+interview_preferences = st.text_area("Interview preferences", value=c.interview_preferences, height=68)
+about = st.text_area(
+    "About you (optional)", value=c.about, height=100,
+    placeholder="Background, strengths, industries you know, what energizes you...",
+)
+dealbreakers = st.text_area(
+    "Dealbreakers (optional)", value=c.dealbreakers, height=68,
+    placeholder="e.g. no crypto companies, no >25% travel, no on-call...",
 )
 
-targets = load_whitelist()
+if st.button("Save criteria", type="primary"):
+    save_criteria(PersonalCriteria(
+        target_roles=target_roles, locations=locations, min_salary=int(min_salary),
+        interview_preferences=interview_preferences, about=about, dealbreakers=dealbreakers,
+    ))
+    st.session_state.flash = "Personal criteria saved — next pipeline run uses them."
+    st.rerun()
 
-if "target_rows" not in st.session_state:
-    st.session_state.target_rows = [
-        {"company_name": t.company_name, "board_type": t.board_type, "board_token": t.board_token}
-        for t in targets
-    ]
+st.divider()
+
+# -------------------------------------------------------- Whitelist targets
+st.subheader("Whitelist targets")
+st.caption(
+    "Paste any careers-page URL below. The app detects the platform (Greenhouse "
+    "or Lever), verifies it against the official public API, and adds it — no "
+    "manual token hunting needed."
+)
+
+pasted_url = st.text_input(
+    "Careers page URL",
+    placeholder="https://boards.greenhouse.io/acme  ·  https://jobs.lever.co/acme",
+)
+if st.button("Add & verify", type="primary", disabled=not pasted_url.strip()):
+    target = detect_target(pasted_url)
+    if target is None:
+        st.error(
+            "Couldn't recognize that URL. Supported: boards.greenhouse.io/<company>, "
+            "job-boards.greenhouse.io/<company>, jobs.lever.co/<company>. "
+            "Company sites often link to one of these from their careers page."
+        )
+    else:
+        with st.spinner(f"Verifying {target.board_token} on {target.board_type}..."):
+            result = verify_target(target)
+        if not result.ok:
+            st.error(result.message)
+        elif add_whitelist_target(target):
+            st.session_state.flash = f"Added {target.company_name} — {result.message}"
+            st.rerun()
+        else:
+            st.info(f"{target.company_name} is already on the whitelist. ({result.message})")
+
+targets = load_whitelist()
+st.markdown(f"**Current whitelist ({len(targets)})** — edit or remove rows below, then save.")
 
 edited = st.data_editor(
-    st.session_state.target_rows,
+    [
+        {"company_name": t.company_name, "board_type": t.board_type, "board_token": t.board_token}
+        for t in targets
+    ],
     num_rows="dynamic",
     use_container_width=True,
     column_config={
@@ -58,17 +129,18 @@ edited = st.data_editor(
     key="whitelist_editor",
 )
 
-if st.button("Save whitelist", type="primary"):
+if st.button("Save whitelist"):
     clean_rows = [
         r for r in edited
         if r.get("company_name") and r.get("board_type") and r.get("board_token")
     ]
     save_whitelist([ScrapeTarget(**r) for r in clean_rows])
-    st.session_state.target_rows = clean_rows
-    st.success(f"Saved {len(clean_rows)} whitelist target(s).")
+    st.session_state.flash = f"Saved {len(clean_rows)} whitelist target(s)."
+    st.rerun()
 
 st.divider()
 
+# ---------------------------------------------------- Selection thresholds
 st.subheader("Selection thresholds")
 st.caption(
     "A scored job must pass all three score gates to be eligible; the best-ranked "
@@ -91,14 +163,10 @@ max_artifacts = st.slider(
     min_value=1, max_value=50, value=current.max_artifacts_per_run, step=1,
 )
 
-if st.button("Save thresholds", type="primary"):
+if st.button("Save thresholds", type="primary", key="save_thresholds"):
     save_thresholds(Thresholds(
         max_friction=max_friction, min_stability=min_stability,
         min_location_fit=min_location_fit, max_artifacts_per_run=max_artifacts,
     ))
-    st.success("Thresholds saved.")
-
-st.divider()
-st.subheader("Location priority terms")
-st.caption("Reference only — used in agent prompts as the target-geography description.")
-st.write(", ".join(settings.location_priority_terms))
+    st.session_state.flash = "Thresholds saved."
+    st.rerun()
