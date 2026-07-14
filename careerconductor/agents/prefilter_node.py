@@ -2,6 +2,9 @@
 tokens on full analysis. This is the "lightweight local execution" layer from the PRD's
 backup execution engine — obviously-irrelevant postings (wrong seniority, wrong
 location, wrong discipline) get dropped here instead of scored in full.
+
+Jobs are screened in batches (one API call per BATCH_SIZE jobs) to stay far under
+free-tier rate limits even when a scrape run discovers hundreds of postings.
 """
 from __future__ import annotations
 
@@ -14,26 +17,38 @@ from careerconductor.config.settings import settings
 
 from .state import CareerEngineState, JobOpportunity
 
-_PREFILTER_PROMPT = """Quick relevance check only — not a full evaluation. Answer whether this
-posting is even worth a detailed look for a senior/staff-level software engineer targeting
-Utah's Salt Lake Valley (Salt Lake City, Draper, South Jordan, Lehi, American Fork, Sandy,
-Provo, Orem) or fully remote roles.
+BATCH_SIZE = 30
+
+_PREFILTER_PROMPT = """Quick relevance screen only — not a full evaluation. For EACH numbered
+posting below, decide whether it is even worth a detailed look for a senior/staff-level
+software engineer targeting Utah's Salt Lake Valley (Salt Lake City, Draper, South Jordan,
+Lehi, American Fork, Sandy, Provo, Orem) or fully remote roles.
 
 Reject only if CLEARLY wrong fit: junior/entry-level titles, unrelated discipline (e.g. sales,
 retail), or a rigid on-site requirement far outside Utah with no remote option. When in doubt, keep it.
 
-Company: {company}
-Title: {title}
-Location: {location}
+Postings:
+{postings}
 
-Respond with ONLY JSON: {{"relevant": true|false, "reason": "<one short phrase>"}}"""
+Respond with ONLY a JSON array, one entry per posting, in input order:
+[{{"index": <int>, "relevant": true|false}}, ...]"""
 
 
-def _extract_json(text: str) -> dict:
-    match = re.search(r"\{.*\}", text, re.DOTALL)
+def _extract_json_array(text: str) -> list:
+    match = re.search(r"\[.*\]", text, re.DOTALL)
     if not match:
-        raise ValueError(f"no JSON object found in model response: {text!r}")
+        raise ValueError(f"no JSON array found in model response: {text!r}")
     return json.loads(match.group(0))
+
+
+def _format_batch(jobs: list[JobOpportunity]) -> str:
+    lines = []
+    for i, job in enumerate(jobs):
+        lines.append(
+            f"{i}. Company: {job.get('company', '')} | Title: {job.get('title', '')} "
+            f"| Location: {job.get('location', '')}"
+        )
+    return "\n".join(lines)
 
 
 def run_prefilter(state: CareerEngineState) -> CareerEngineState:
@@ -43,30 +58,30 @@ def run_prefilter(state: CareerEngineState) -> CareerEngineState:
     if not settings.gemini_api_key:
         logs.append("prefilter skipped: GEMINI_API_KEY not set")
         return {**state, "execution_logs": logs}
+    if not jobs:
+        return {**state, "execution_logs": logs}
 
     client = genai.Client(api_key=settings.gemini_api_key)
     kept: list[JobOpportunity] = []
     dropped = 0
 
-    for job in jobs:
-        prompt = _PREFILTER_PROMPT.format(
-            company=job.get("company", ""),
-            title=job.get("title", ""),
-            location=job.get("location", ""),
-        )
+    for start in range(0, len(jobs), BATCH_SIZE):
+        batch = jobs[start:start + BATCH_SIZE]
         try:
             response = client.models.generate_content(
                 model=settings.gemini_model,
-                contents=prompt,
+                contents=_PREFILTER_PROMPT.format(postings=_format_batch(batch)),
             )
-            result = _extract_json(response.text)
-            if result.get("relevant", True):
-                kept.append(job)
-            else:
-                dropped += 1
+            verdicts = {v["index"]: bool(v.get("relevant", True))
+                        for v in _extract_json_array(response.text)}
+            for i, job in enumerate(batch):
+                if verdicts.get(i, True):  # missing verdict -> fail open
+                    kept.append(job)
+                else:
+                    dropped += 1
         except Exception as exc:  # noqa: BLE001 - fail open, let full analysis decide
-            logs.append(f"prefilter failed for {job.get('company')} / {job.get('title')}: {exc}")
-            kept.append(job)
+            logs.append(f"prefilter batch starting at {start} failed ({exc}); keeping batch")
+            kept.extend(batch)
 
     logs.append(f"prefilter: kept {len(kept)}, dropped {dropped} of {len(jobs)} discovered jobs")
     return {**state, "discovered_jobs": kept, "execution_logs": logs}

@@ -21,6 +21,7 @@ def run_scraping(state: CareerEngineState, db: CareerConductorDB) -> CareerEngin
                 logs.append(f"skip {target.company_name}: unknown board_type {target.board_type}")
                 continue
             scraper = scraper_cls(client=client)
+            new_for_target = 0
             try:
                 for posting in scraper.fetch(target.company_name, target.board_token):
                     job_hash = compute_job_hash(posting.company_name, posting.job_id or posting.url)
@@ -43,7 +44,8 @@ def run_scraping(state: CareerEngineState, db: CareerConductorDB) -> CareerEngin
                         source_url=posting.url,
                         raw_text=posting.raw_payload,
                     ))
-                logs.append(f"{target.company_name}: {len(discovered)} new postings")
+                    new_for_target += 1
+                logs.append(f"{target.company_name}: {new_for_target} new postings")
             except Exception as exc:  # noqa: BLE001 - log and continue to next target
                 logs.append(f"{target.company_name}: scrape failed ({exc})")
     finally:

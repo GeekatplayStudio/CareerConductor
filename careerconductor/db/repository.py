@@ -85,16 +85,22 @@ class CareerConductorDB:
             )
 
     def update_ratings(
-        self, job_hash: str, stability: float, friction: float, location_fit: float
+        self, job_hash: str, stability: float, friction: float, location_fit: float,
+        salary_floor: Optional[int] = None, salary_ceiling: Optional[int] = None,
+        salary_is_estimated: bool = False,
     ) -> None:
         with self._connect() as conn:
             conn.execute(
                 """
                 UPDATE jobs_master
-                SET stability_rating = ?, friction_rating = ?, location_fit_rating = ?
+                SET stability_rating = ?, friction_rating = ?, location_fit_rating = ?,
+                    salary_floor = COALESCE(?, salary_floor),
+                    salary_ceiling = COALESCE(?, salary_ceiling),
+                    salary_is_estimated = ?
                 WHERE job_hash = ?
                 """,
-                (stability, friction, location_fit, job_hash),
+                (stability, friction, location_fit, salary_floor, salary_ceiling,
+                 int(salary_is_estimated), job_hash),
             )
             conn.execute(
                 "UPDATE applications_ledger SET status = 'analyzed', updated_at = CURRENT_TIMESTAMP "

@@ -46,6 +46,7 @@ with right:
     st.write(f"Max interview friction: **{t.max_friction}**")
     st.write(f"Min company stability: **{t.min_stability}**")
     st.write(f"Min location fit: **{t.min_location_fit}**")
+    st.write(f"Max artifacts per run: **{t.max_artifacts_per_run}**")
     st.caption("Adjust these on the Configuration page.")
 
 st.divider()

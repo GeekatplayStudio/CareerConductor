@@ -70,7 +70,10 @@ if st.button("Save whitelist", type="primary"):
 st.divider()
 
 st.subheader("Selection thresholds")
-st.caption("A scored job must satisfy all three to reach artifact generation.")
+st.caption(
+    "A scored job must pass all three score gates to be eligible; the best-ranked "
+    "eligible jobs up to the per-run cap get artifacts generated."
+)
 current = load_thresholds()
 
 max_friction = st.slider(
@@ -83,10 +86,15 @@ min_stability = st.slider(
 min_location_fit = st.slider(
     "Min location fit", min_value=0.0, max_value=10.0, value=current.min_location_fit, step=0.5,
 )
+max_artifacts = st.slider(
+    "Max artifacts per run (cost control — best-ranked jobs kept)",
+    min_value=1, max_value=50, value=current.max_artifacts_per_run, step=1,
+)
 
 if st.button("Save thresholds", type="primary"):
     save_thresholds(Thresholds(
-        max_friction=max_friction, min_stability=min_stability, min_location_fit=min_location_fit,
+        max_friction=max_friction, min_stability=min_stability,
+        min_location_fit=min_location_fit, max_artifacts_per_run=max_artifacts,
     ))
     st.success("Thresholds saved.")
 

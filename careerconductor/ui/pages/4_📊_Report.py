@@ -78,16 +78,22 @@ top = db.top_candidates(limit=15)
 if not top:
     st.caption("No scored jobs yet.")
 else:
-    top_df = pd.DataFrame([dict(r) for r in top])[[
-        "company_name", "job_title", "location", "stability_rating",
+    top_df = pd.DataFrame([dict(r) for r in top])
+    top_df["score"] = (
+        top_df["stability_rating"] - top_df["friction_rating"] + top_df["location_fit_rating"]
+    )
+    top_df = top_df[[
+        "score", "company_name", "job_title", "location", "stability_rating",
         "friction_rating", "location_fit_rating", "salary_floor",
         "salary_ceiling", "status", "source_url",
     ]]
+    st.caption("Score = stability − friction + location fit (same formula the pipeline ranks by).")
     st.dataframe(
         top_df,
         use_container_width=True,
         hide_index=True,
         column_config={
+            "score": st.column_config.NumberColumn("Score", format="%.1f"),
             "salary_floor": st.column_config.NumberColumn("Salary floor", format="$%d"),
             "salary_ceiling": st.column_config.NumberColumn("Salary ceiling", format="$%d"),
             "source_url": st.column_config.LinkColumn("Posting", display_text="open"),
@@ -142,6 +148,10 @@ if st.button("Update status", type="primary"):
 st.divider()
 
 st.subheader("All tracked jobs")
+status_filter = st.multiselect(
+    "Filter by status", STATUS_ORDER, default=STATUS_ORDER, key="all_jobs_status_filter",
+)
+df = df[df["status"].isin(status_filter)]
 display_cols = [
     "company_name", "job_title", "location", "status", "stability_rating",
     "friction_rating", "location_fit_rating", "salary_floor", "salary_ceiling",

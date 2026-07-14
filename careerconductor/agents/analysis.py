@@ -1,4 +1,9 @@
-"""Analysis & valuation agent: scores discovered jobs via the Claude API."""
+"""Analysis & valuation agent: scores discovered jobs via the Claude API.
+
+The scoring rubric is identical for every job, so it's sent as a cached system
+block — only the first call in a run pays full input price for it; subsequent
+jobs read it from cache. Transient API failures retry via the shared policy.
+"""
 from __future__ import annotations
 
 import json
@@ -9,9 +14,10 @@ import anthropic
 from careerconductor.config.settings import settings
 from careerconductor.db.repository import CareerConductorDB
 
+from .llm import cached_system_block, claude_call
 from .state import CareerEngineState, JobOpportunity
 
-_SCORING_PROMPT = """You are evaluating a job posting for a candidate who wants:
+_SCORING_RUBRIC = """You are evaluating job postings for a candidate who wants:
 - LOW interview friction: prefers system design / architecture / portfolio discussions over
   LeetCode-style live coding or HackerRank timed tests.
 - HIGH company stability: established companies with funding/revenue history over
@@ -21,22 +27,21 @@ _SCORING_PROMPT = """You are evaluating a job posting for a candidate who wants:
 - A fair market salary estimate if the posting doesn't list one, based on the role's seniority,
   title, and the Lehi/American Fork/Salt Lake tech corridor market.
 
-Job posting:
-Company: {company}
-Title: {title}
-Location: {location}
-Raw text:
-{raw_text}
-
-Respond with ONLY a JSON object, no prose, in exactly this shape:
-{{
+For each posting the user sends, respond with ONLY a JSON object, no prose, in exactly this shape:
+{
   "interview_friction": <float 0-10, 10 = worst (heavy live coding)>,
   "stability_score": <float 0-10, 10 = best (very stable)>,
   "location_fit_score": <float 0-10, 10 = best fit>,
   "salary_floor": <int, USD annual, your best estimate if unlisted>,
   "salary_ceiling": <int, USD annual, your best estimate if unlisted>,
   "salary_is_estimated": <true|false>
-}}"""
+}"""
+
+_JOB_TEMPLATE = """Company: {company}
+Title: {title}
+Location: {location}
+Raw text:
+{raw_text}"""
 
 
 def _extract_json(text: str) -> dict:
@@ -49,22 +54,20 @@ def _extract_json(text: str) -> dict:
 def run_analysis(state: CareerEngineState, db: CareerConductorDB) -> CareerEngineState:
     logs = list(state.get("execution_logs", []))
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    system = cached_system_block(_SCORING_RUBRIC)
     scored: list[JobOpportunity] = []
 
     for job in state.get("discovered_jobs", []):
-        prompt = _SCORING_PROMPT.format(
+        user_content = _JOB_TEMPLATE.format(
             company=job.get("company", ""),
             title=job.get("title", ""),
             location=job.get("location", ""),
             raw_text=(job.get("raw_text") or "")[:6000],
         )
         try:
-            response = client.messages.create(
-                model=settings.anthropic_model,
-                max_tokens=500,
-                messages=[{"role": "user", "content": prompt}],
+            result = _extract_json(
+                claude_call(client, system=system, user_content=user_content, max_tokens=500)
             )
-            result = _extract_json(response.content[0].text)
 
             job = dict(job)
             job["interview_friction"] = float(result["interview_friction"])
@@ -81,6 +84,9 @@ def run_analysis(state: CareerEngineState, db: CareerConductorDB) -> CareerEngin
                 stability=job["stability_score"],
                 friction=job["interview_friction"],
                 location_fit=job["location_fit_score"],
+                salary_floor=int(result["salary_floor"]),
+                salary_ceiling=int(result["salary_ceiling"]),
+                salary_is_estimated=bool(result["salary_is_estimated"]),
             )
             scored.append(job)
         except Exception as exc:  # noqa: BLE001 - one bad job shouldn't kill the batch

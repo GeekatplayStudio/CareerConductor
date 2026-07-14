@@ -26,6 +26,7 @@ class Thresholds:
     max_friction: float = 6.0
     min_stability: float = 5.0
     min_location_fit: float = 5.0
+    max_artifacts_per_run: int = 10
 
 
 def load_whitelist() -> list[ScrapeTarget]:

@@ -16,6 +16,7 @@ import anthropic
 from careerconductor.config.settings import settings
 from careerconductor.db.repository import CareerConductorDB
 
+from .llm import cached_system_block, claude_call
 from .state import CareerEngineState
 
 _CANDIDATE_CONTEXT_TEMPLATE = """MASTER RESUME:
@@ -50,24 +51,18 @@ def _slugify(text: str) -> str:
 
 def _generate(client: anthropic.Anthropic, cached_context: str, instructions: str,
               artifact_kind: str, job: dict, max_tokens: int) -> str:
-    response = client.messages.create(
-        model=settings.anthropic_model,
+    return claude_call(
+        client,
+        system=cached_system_block(cached_context),
+        user_content=_JOB_TEMPLATE.format(
+            instructions=instructions,
+            company=job.get("company", ""),
+            title=job.get("title", ""),
+            raw_text=(job.get("raw_text") or "")[:6000],
+            artifact_kind=artifact_kind,
+        ),
         max_tokens=max_tokens,
-        system=[
-            {"type": "text", "text": cached_context, "cache_control": {"type": "ephemeral"}},
-        ],
-        messages=[{
-            "role": "user",
-            "content": _JOB_TEMPLATE.format(
-                instructions=instructions,
-                company=job.get("company", ""),
-                title=job.get("title", ""),
-                raw_text=(job.get("raw_text") or "")[:6000],
-                artifact_kind=artifact_kind,
-            ),
-        }],
     )
-    return response.content[0].text
 
 
 def run_artifact_generation(state: CareerEngineState, db: CareerConductorDB) -> CareerEngineState:
