@@ -29,9 +29,9 @@ from careerconductor.config.store import (
     save_whitelist,
 )
 from careerconductor.ui.common import render_sidebar_status
-from careerconductor.ui.theme import apply_theme, hero
+from careerconductor.ui.theme import apply_theme, hero, status_line
 
-st.set_page_config(page_title="Configuration — CareerConductor", page_icon="⚙️", layout="wide")
+st.set_page_config(page_title="Configuration — CareerConductor", layout="wide")
 apply_theme()
 render_sidebar_status()
 hero("Configuration", "Criteria, targets, and thresholds — set once, persists forever")
@@ -42,12 +42,17 @@ if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))
 
 col1, col2 = st.columns(2)
-col1.write(f"`ANTHROPIC_API_KEY`: {'✅ set' if settings.anthropic_api_key else '❌ not set'}")
-col2.write(f"`GEMINI_API_KEY`: {'✅ set' if settings.gemini_api_key else '❌ not set (pre-filter will be skipped)'}")
+with col1:
+    status_line(bool(settings.anthropic_api_key),
+                "ANTHROPIC_API_KEY " + ("set" if settings.anthropic_api_key else "not set"))
+with col2:
+    status_line(bool(settings.gemini_api_key),
+                "GEMINI_API_KEY " + ("set" if settings.gemini_api_key
+                                     else "not set (pre-filter will be skipped)"))
 st.caption("Keys live in `.env` at the project root — the UI doesn't store them.")
 
 # ------------------------------------------------------- Personal criteria
-with st.expander("🎯 Personal criteria", expanded=True):
+with st.expander("Personal criteria", expanded=True):
     st.caption(
         "Plain language works best — these lines are injected verbatim into the AI "
         "prompts that screen and score every posting, like a hiring brief about you."
@@ -78,7 +83,7 @@ with st.expander("🎯 Personal criteria", expanded=True):
         st.rerun()
 
 # -------------------------------------------------------- Whitelist targets
-with st.expander("🌐 Whitelist targets", expanded=True):
+with st.expander("Whitelist targets", expanded=True):
     st.caption(
         "Paste any careers-page URL. The app detects the platform (Greenhouse or "
         "Lever), verifies it against the official public API, and adds it — no "
@@ -136,7 +141,7 @@ with st.expander("🌐 Whitelist targets", expanded=True):
         st.rerun()
 
 # ---------------------------------------------------- Selection thresholds
-with st.expander("🎚️ Selection thresholds", expanded=True):
+with st.expander("Selection thresholds", expanded=True):
     st.caption(
         "A scored job must pass all three score gates to be eligible; the best-ranked "
         "eligible jobs up to the per-run cap get artifacts generated."

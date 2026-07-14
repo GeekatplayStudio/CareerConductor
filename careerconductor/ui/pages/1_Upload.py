@@ -14,7 +14,7 @@ from careerconductor.config.settings import settings
 from careerconductor.ui.common import get_db, render_sidebar_status
 from careerconductor.ui.theme import apply_theme, hero
 
-st.set_page_config(page_title="Upload — CareerConductor", page_icon="📤", layout="wide")
+st.set_page_config(page_title="Upload — CareerConductor", layout="wide")
 apply_theme()
 render_sidebar_status()
 hero("Upload", "Master resume and project database — content-hashed and tracked")

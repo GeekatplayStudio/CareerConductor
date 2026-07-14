@@ -121,6 +121,28 @@ def apply_theme() -> None:
     st.markdown(_GLOBAL_CSS, unsafe_allow_html=True)
 
 
+def status_line(ok: bool, text: str, warn: bool = False) -> None:
+    """Flat single-color status marker instead of emoji: a filled dot when good,
+    a hollow dot when missing/pending. No reds, no glyph clutter.
+
+    ok=True  -> ● cyan     (configured / done)
+    warn     -> ◌ amber    (works, but attention suggested)
+    ok=False -> ○ slate    (not set up yet)
+    """
+    if ok:
+        dot, color = "&#9679;", ACCENT          # ●
+    elif warn:
+        dot, color = "&#9676;", "#d4a373"       # ◌ muted amber
+    else:
+        dot, color = "&#9675;", "#64748b"       # ○ slate
+    st.markdown(
+        f'<div style="margin:2px 0;color:#cbd5e1;">'
+        f'<span style="color:{color};font-size:0.9em;">{dot}</span>'
+        f'&nbsp;&nbsp;{text}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def hero(title: str, subtitle: str) -> None:
     """Gradient headline block used at the top of pages."""
     st.markdown(

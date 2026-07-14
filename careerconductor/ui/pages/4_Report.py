@@ -34,7 +34,7 @@ def _style(fig):
     return fig
 
 
-st.set_page_config(page_title="Report — CareerConductor", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Report — CareerConductor", layout="wide")
 apply_theme()
 render_sidebar_status()
 hero("Report", "Everything the agents found, scored, and generated")

@@ -57,10 +57,17 @@ pre-filtering), and **Streamlit** (control panel UI).
 
 ## Quick start
 
+**Mac / Linux**
 ```bash
-./scripts/install.sh          # creates .venv, installs the package, seeds .env from the template
+./install.sh     # step-by-step: checks Python, creates .venv, installs, seeds .env
 # edit .env and add your API keys
-./scripts/run_ui.sh           # opens the control panel at http://localhost:8501
+./start.sh       # opens the control panel at http://localhost:8501
+```
+
+**Windows** — double-click (or run from a terminal in the project folder):
+```
+install.bat      then edit .env with your keys, then:
+start.bat
 ```
 
 API keys (both pay-as-you-go / free-tier, **not** consumer subscriptions):

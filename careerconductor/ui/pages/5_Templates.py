@@ -27,7 +27,7 @@ from careerconductor.templates.resume_templates import (
 from careerconductor.ui.common import render_sidebar_status
 from careerconductor.ui.theme import apply_theme, hero
 
-st.set_page_config(page_title="Templates — CareerConductor", page_icon="🎨", layout="wide")
+st.set_page_config(page_title="Templates — CareerConductor", layout="wide")
 apply_theme()
 render_sidebar_status()
 hero("Resume Templates", "Pick the style that ships with every tailored resume")

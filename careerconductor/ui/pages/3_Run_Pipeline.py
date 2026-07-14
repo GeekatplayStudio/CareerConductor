@@ -15,7 +15,7 @@ from careerconductor.config.store import load_whitelist
 from careerconductor.ui.common import get_db, render_sidebar_status
 from careerconductor.ui.theme import agent_network, apply_theme, hero
 
-st.set_page_config(page_title="Run Pipeline — CareerConductor", page_icon="▶️", layout="wide")
+st.set_page_config(page_title="Run Pipeline — CareerConductor", layout="wide")
 apply_theme()
 render_sidebar_status()
 hero("Run Pipeline", "scrape → prefilter → analyze → select → generate → referrals")
@@ -30,7 +30,7 @@ elif not targets:
 else:
     st.write(f"Ready to scrape **{len(targets)}** whitelisted target(s).")
     if not settings.gemini_api_key:
-        st.caption("⚠️ GEMINI_API_KEY not set — the cheap pre-filter step will be skipped (fine, just costs a bit more).")
+        st.caption("GEMINI_API_KEY not set — the cheap pre-filter step will be skipped (fine, just costs a bit more).")
 
     run_clicked = st.button("Run full pipeline now", type="primary")
 
@@ -65,4 +65,4 @@ else:
             f"Discovered {len(final_state.get('discovered_jobs', []))} jobs, "
             f"selected {len(final_state.get('selected_jobs', []))} for artifact generation."
         )
-        st.page_link("pages/4_📊_Report.py", label="View results on the Report page →", icon="📊")
+        st.page_link("pages/4_Report.py", label="View results on the Report page →")

@@ -12,9 +12,9 @@ import streamlit as st
 from careerconductor.config.settings import settings
 from careerconductor.config.store import CRITERIA_PATH, load_thresholds, load_whitelist
 from careerconductor.ui.common import get_db, render_sidebar_status
-from careerconductor.ui.theme import agent_network, apply_theme, hero
+from careerconductor.ui.theme import agent_network, apply_theme, hero, status_line
 
-st.set_page_config(page_title="CareerConductor", page_icon="🧭", layout="wide")
+st.set_page_config(page_title="CareerConductor", layout="wide")
 apply_theme()
 render_sidebar_status()
 
@@ -35,16 +35,22 @@ st.divider()
 left, right = st.columns(2)
 with left:
     st.subheader("Setup checklist")
-    st.write("✅ Anthropic API key" if settings.anthropic_api_key else "❌ Anthropic API key — set in `.env`")
-    st.write("✅ Gemini API key" if settings.gemini_api_key else "❌ Gemini API key — set in `.env` (optional pre-filter)")
+    status_line(bool(settings.anthropic_api_key),
+                "Anthropic API key" if settings.anthropic_api_key else "Anthropic API key — set in .env")
+    status_line(bool(settings.gemini_api_key),
+                "Gemini API key" if settings.gemini_api_key else "Gemini API key — optional pre-filter, set in .env")
     resume_text = Path(settings.master_resume_path).read_text() if Path(settings.master_resume_path).exists() else ""
-    st.write("✅ Master resume uploaded" if len(resume_text) > 300 else "⚠️ Master resume looks empty — go to Upload")
+    resume_ok = len(resume_text) > 300
+    status_line(resume_ok,
+                "Master resume uploaded" if resume_ok else "Master resume looks empty — go to Upload",
+                warn=not resume_ok)
     targets = load_whitelist()
-    st.write(f"{'✅' if targets else '⚠️'} Whitelist targets configured: {len(targets)}")
-    st.write(
-        "✅ Personal criteria saved" if CRITERIA_PATH.exists()
-        else "⚠️ Personal criteria not saved yet — defaults in use (Configuration page)"
-    )
+    status_line(bool(targets), f"Whitelist targets configured: {len(targets)}", warn=not targets)
+    criteria_ok = CRITERIA_PATH.exists()
+    status_line(criteria_ok,
+                "Personal criteria saved" if criteria_ok
+                else "Personal criteria not saved — defaults in use (Configuration page)",
+                warn=not criteria_ok)
 
 with right:
     st.subheader("Current thresholds")
